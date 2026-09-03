@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estructura de Pérdidas en Cascada (GE)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<style>
+  :root {
+    --purple: rgb(169, 126, 199);
+    --orange: #E18719;
+    --green: #287819;
+    --brown: #623E23;
+    --cyan: #3599B8;
+    --red: #A52323;
+    --teal: #4AC5BB;
+    --yellow: #E6AF23;
+    --gray-dark: #293537;
+    --gray-med-dark: #5F6B6D;
+    --gray-medium: #7F898A;
+    --gray-med-light: #A78F8F;
+    --gray-light: #DFBFBF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background-color: #f5f5f5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 16px;
+    color: var(--gray-dark);
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .title-banner {
+    background-color: var(--orange);
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  .title-banner h2 { margin: 0; font-weight: bold; font-size: 20px; }
+  .title-banner p { margin: 3px 0 0 0; font-size: 13px; }
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 12px;
+  }
+  .card h4 {
+    text-align: center;
+    color: var(--gray-dark);
+    margin: 5px 0 10px 0;
+    font-weight: bold;
+    font-size: 15px;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 12px;
+  }
+  @media (max-width: 860px) {
+    .charts-row { grid-template-columns: 1fr; }
+  }
+  .plot-box { width: 100%; height: 380px; }
+  .control-panel {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 900px) {
+    .control-panel { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .control-panel { grid-template-columns: repeat(2, 1fr); }
+  }
+  .control-panel label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .control-panel input[type="number"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .control-panel input[type="range"] {
+    width: 100%;
+  }
+  .slider-value {
+    font-size: 12px;
+    color: var(--gray-med-dark);
+    font-weight: 600;
+  }
+  .tooltip-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-color: var(--cyan);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 11px;
+    line-height: 16px;
+    cursor: help;
+    margin-left: 4px;
+  }
+  .info-box {
+    background-color: var(--gray-dark);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .info-box b { font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="title-banner">
+    <h2>ESTRUCTURA DE PÉRDIDAS EN CASCADA (WATERFALL)</h2>
+    <p>Simulador para entender los indicadores de eficiencia</p>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <h4>ESTRUCTURA DE PÉRDIDAS EN CASCADA (WATERFALL)</h4>
+      <div id="grafico_cascada" class="plot-box"></div>
+    </div>
+    <div class="card">
+      <h4>INDICADORES DE EFICIENCIA</h4>
+      <div id="grafico_ge" class="plot-box"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="control-panel">
+      <div>
+        <label>⏱️ Tiempo Máximo (hrs):
+          <span class="tooltip-icon" title="Total de horas calendario disponibles">?</span>
+        </label>
+        <input type="number" id="tiempo_max" value="24" min="1" max="168" step="1">
+      </div>
+      <div>
+        <label>🚫 Tiempo No Usado (hrs):
+          <span class="tooltip-icon" title="Tiempo Inactivo: No demanda, Fuerza Mayor, Paro legal no operativo">?</span>
+        </label>
+        <input type="number" id="tiempo_no_usado" value="8" min="0" max="168" step="0.5">
+      </div>
+      <div>
+        <label>🔧 Paros Planeados (hrs):
+          <span class="tooltip-icon" title="Paros planeados con más de 24 horas de antelación">?</span>
+        </label>
+        <input type="number" id="paros_planeados" value="2" min="0" max="168" step="0.5">
+      </div>
+      <div>
+        <label>⚠️ Paros No Planeados (hrs):
+          <span class="tooltip-icon" title="Interrupciones no programadas de la producción">?</span>
+        </label>
+        <input type="number" id="paros_no_planeados" value="2.5" min="0" max="168" step="0.5">
+      </div>
+      <div>
+        <label>🐢 Pérd. Velocidad: <span class="slider-value" id="perdida_velocidad_val">10%</span></label>
+        <input type="range" id="perdida_velocidad" min="0" max="50" value="10" step="1">
+      </div>
+      <div>
+        <label>❌ Pérd. Calidad: <span class="slider-value" id="perdida_calidad_val">5%</span></label>
+        <input type="range" id="perdida_calidad" min="0" max="50" value="5" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4 style="text-align:left;">📘 Definiciones</h4>
+    <div class="info-box" id="definiciones"></div>
+  </div>
+
+</div>
+
+<script>
+const tooltips = {
+  tiempo_max: "Total de horas calendario disponibles",
+  tiempo_no_usado: "Tiempo Inactivo: No demanda, Fuerza Mayor, Paro legal no operativo",
+  tiempo_usado: "Es el tiempo que la línea está siendo utilizada",
+  paros_planeados: "Paros planeados con más de 24 horas de antelación",
+  tiempo_productivo: "Tiempo Usado - Paros Planeados. Tiempo dedicado a producción de volumen",
+  paros_no_plan: "Interrupciones no programadas de la producción",
+  tiempo_operativo: "Tiempo dedicado a generar producto vendible a velocidad nominal",
+  ge: "GE (Global Efficiency) = Tiempo Operativo / Tiempo Usado",
+  oee: "OEE (Overall Equipment Effectiveness) = Tiempo Operativo / Tiempo Productivo",
+  au: "AU (Asset Utilization) = Tiempo Operativo / Tiempo Máximo",
+  lu: "LU (Line Utilization) = Tiempo Usado / Tiempo Máximo",
+  cu: "CU (Capacity Utilization) = Tiempo Operativo / (Tiempo Máximo × 0.85 × 350/365)"
+};
+
+const paletaWaterfall = {
+  TiempoMaximo: "#666666",
+  TiempoNoUsado: "#7F898A",
+  TiempoUsado: "#2D6EAA",
+  ParosPlaneados: "#ABC5DD",
+  TiempoProductivo: "#A52323",
+  ParosNoPlaneados: "#E4BDBD",
+  TiempoOperativo: "#287819"
+};
+
+const colors = {
+  Primary1: "rgb(169, 126, 199)",
+  Primary2: "#E18719",
+  Primary4: "#623E23",
+  Cyan: "#3599B8",
+  Teal: "#4AC5BB",
+  Red: "#A52323",
+  GrayDark: "#293537",
+  GrayLight: "#DFBFBF"
+};
+
+function val(id) { return parseFloat(document.getElementById(id).value); }
+function r1(x) { return Math.round(x * 10) / 10; }
+
+function calcular() {
+  const tiempo_max = val('tiempo_max');
+  const tiempo_no_usado = Math.min(val('tiempo_no_usado'), tiempo_max);
+  const tiempo_usado = tiempo_max - tiempo_no_usado;
+  const paros_planeados = Math.min(val('paros_planeados'), tiempo_usado);
+  const tiempo_productivo = tiempo_usado - paros_planeados;
+  const paros_no_plan = Math.min(val('paros_no_planeados'), tiempo_productivo);
+
+  const tiempo_post_paros = tiempo_productivo - paros_no_plan;
+
+  const perdida_velocidad = val('perdida_velocidad');
+  const perdida_calidad = val('perdida_calidad');
+  const perdida_vel = tiempo_post_paros * (perdida_velocidad / 100);
+  const perdida_cal = tiempo_post_paros * (perdida_calidad / 100);
+
+  let tiempo_operativo = tiempo_post_paros - perdida_vel - perdida_cal;
+  tiempo_operativo = Math.max(tiempo_operativo, 0);
+
+  const ge = tiempo_usado > 0 ? (tiempo_operativo / tiempo_usado) * 100 : 0;
+  const oee = tiempo_productivo > 0 ? (tiempo_operativo / tiempo_productivo) * 100 : 0;
+  const au = tiempo_max > 0 ? (tiempo_operativo / tiempo_max) * 100 : 0;
+  const lu = tiempo_max > 0 ? (tiempo_usado / tiempo_max) * 100 : 0;
+  const cu = tiempo_max > 0 ? (tiempo_operativo / (tiempo_max * 0.85 * (350 / 365))) * 100 : 0;
+
+  return {
+    tiempo_max, tiempo_no_usado, tiempo_usado, paros_planeados, tiempo_productivo,
+    paros_no_plan, perdida_vel, perdida_cal, tiempo_operativo, ge, oee, au, lu, cu
+  };
+}
+
+function dibujarCascada(d) {
+  const categorias = [
+    "Tiempo Máximo", "Tiempo No Usado", "Tiempo Usado", "Paros Planeados",
+    "Tiempo Productivo", "Paros No Planeados", "Tiempo Operativo"
+  ];
+
+  const valoresAbs = [
+    d.tiempo_max, d.tiempo_no_usado, d.tiempo_usado, d.paros_planeados,
+    d.tiempo_productivo, d.paros_no_plan + d.perdida_vel + d.perdida_cal, d.tiempo_operativo
+  ];
+
+  const coloresBarra = [
+    paletaWaterfall.TiempoMaximo, paletaWaterfall.TiempoNoUsado, paletaWaterfall.TiempoUsado,
+    paletaWaterfall.ParosPlaneados, paletaWaterfall.TiempoProductivo,
+    paletaWaterfall.ParosNoPlaneados, paletaWaterfall.TiempoOperativo
+  ];
+
+  const hoverTexts = [
+    `<b>Tiempo Máximo</b><br>${r1(d.tiempo_max)} hrs<br><i>${tooltips.tiempo_max}</i>`,
+    `<b>Tiempo No Usado</b><br>${r1(d.tiempo_no_usado)} hrs<br><i>${tooltips.tiempo_no_usado}</i>`,
+    `<b>Tiempo Usado</b><br>${r1(d.tiempo_usado)} hrs<br><i>${tooltips.tiempo_usado}</i>`,
+    `<b>Paros Planeados</b><br>${r1(d.paros_planeados)} hrs<br><i>${tooltips.paros_planeados}</i>`,
+    `<b>Tiempo Productivo</b><br>${r1(d.tiempo_productivo)} hrs<br><i>${tooltips.tiempo_productivo}</i>`,
+    `<b>Paros No Planeados + Pérdidas</b><br>${r1(d.paros_no_plan + d.perdida_vel + d.perdida_cal)} hrs<br><i>${tooltips.paros_no_plan}</i>`,
+    `<b>Tiempo Operativo</b><br>${r1(d.tiempo_operativo)} hrs<br><i>${tooltips.tiempo_operativo}</i>`
+  ];
+
+  const bases = [0, d.tiempo_usado, 0, d.tiempo_productivo, 0, d.tiempo_operativo, 0];
+
+  const traceBase = {
+    x: categorias, y: bases, type: 'bar',
+    marker: { color: 'rgba(0,0,0,0)' },
+    hoverinfo: 'none', showlegend: false
+  };
+
+  const traceVisible = {
+    x: categorias, y: valoresAbs, type: 'bar',
+    marker: { color: coloresBarra, line: { color: '#FFFFFF', width: 0.5 } },
+    text: valoresAbs.map(v => r1(v) + ' hrs'),
+    textposition: 'outside',
+    textfont: { size: 11, color: '#293537', family: 'Segoe UI' },
+    hovertext: hoverTexts, hoverinfo: 'text', showlegend: false
+  };
+
+  const layout = {
+    barmode: 'stack',
+    xaxis: { title: '', tickfont: { size: 10, color: '#293537', family: 'Segoe UI' },
+             categoryorder: 'array', categoryarray: categorias },
+    yaxis: { title: 'Horas', titlefont: { color: '#293537', family: 'Segoe UI' },
+             gridcolor: '#DFBFBF', zeroline: true, zerolinecolor: '#293537' },
+    plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+    showlegend: false, margin: { t: 20, b: 60 }
+  };
+
+  Plotly.react('grafico_cascada', [traceBase, traceVisible], layout, { responsive: true, displayModeBar: false });
+}
+
+function dibujarIndicadores(d) {
+  const indicadores = ["GE", "OEE", "AU", "LU", "CU"];
+  const valoresPct = [r1(d.ge), r1(d.oee), r1(d.au), r1(d.lu), r1(d.cu)];
+  const coloresInd = [colors.Primary1, colors.Primary2, colors.Primary4, colors.Cyan, colors.Teal];
+  const denomCu = r1(d.tiempo_max * 0.85 * (350 / 365));
+
+  const hoverInd = [
+    `<b>GE: ${r1(d.ge)}%</b><br><i>${tooltips.ge}</i><br>= ${r1(d.tiempo_operativo)} / ${r1(d.tiempo_usado)} hrs`,
+    `<b>OEE: ${r1(d.oee)}%</b><br><i>${tooltips.oee}</i><br>= ${r1(d.tiempo_operativo)} / ${r1(d.tiempo_productivo)} hrs`,
+    `<b>AU: ${r1(d.au)}%</b><br><i>${tooltips.au}</i><br>= ${r1(d.tiempo_operativo)} / ${r1(d.tiempo_max)} hrs`,
+    `<b>LU: ${r1(d.lu)}%</b><br><i>${tooltips.lu}</i><br>= ${r1(d.tiempo_usado)} / ${r1(d.tiempo_max)} hrs`,
+    `<b>CU: ${r1(d.cu)}%</b><br><i>${tooltips.cu}</i><br>= ${r1(d.tiempo_operativo)} / (${r1(d.tiempo_max)} × 0.85 × 350/365)<br>= ${r1(d.tiempo_operativo)} / ${denomCu} hrs`
+  ];
+
+  const trace = {
+    x: indicadores, y: valoresPct, type: 'bar',
+    marker: { color: coloresInd, line: { color: colors.GrayDark, width: 1.5 } },
+    text: valoresPct.map(v => v + '%'),
+    textposition: 'outside',
+    textfont: { size: 13, color: colors.GrayDark, family: 'Segoe UI' },
+    hovertext: hoverInd, hoverinfo: 'text'
+  };
+
+  const layout = {
+    xaxis: { title: '', tickfont: { size: 12, color: colors.GrayDark, family: 'Segoe UI' } },
+    yaxis: { title: 'Porcentaje (%)', range: [0, Math.max(...valoresPct, 100) + 10],
+             titlefont: { color: colors.GrayDark }, gridcolor: colors.GrayLight },
+    plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+    showlegend: false, margin: { t: 20 },
+    shapes: [{ type: 'line', x0: -0.5, x1: 4.5, y0: 100, y1: 100,
+               line: { color: colors.Red, width: 2, dash: 'dash' } }]
+  };
+
+  Plotly.react('grafico_ge', [trace], layout, { responsive: true, displayModeBar: false });
+}
+
+function actualizarDefiniciones(d) {
+  document.getElementById('definiciones').innerHTML = `
+    <b>Tiempo Máximo:</b> ${tooltips.tiempo_max}<br>
+    <b>Tiempo No Usado:</b> ${tooltips.tiempo_no_usado}<br>
+    <b>Tiempo Usado:</b> ${tooltips.tiempo_usado}<br>
+    <b>Paros Planeados:</b> ${tooltips.paros_planeados}<br>
+    <b>Tiempo Productivo:</b> Tiempo Usado - Paros Planeados.<br>
+    <b>Paros No Planeados:</b> ${tooltips.paros_no_plan}<br>
+    <b>Tiempo Operativo:</b> ${tooltips.tiempo_operativo}<br><br>
+    <b style="color:rgb(169,126,199);">${tooltips.ge}</b><br>
+    <b style="color:#E18719;">${tooltips.oee}</b><br>
+    <b style="color:#623E23;">${tooltips.au}</b><br>
+    <b style="color:#3599B8;">${tooltips.lu}</b><br>
+    <b style="color:#4AC5BB;">${tooltips.cu}</b>
+  `;
+}
+
+function actualizarTodo() {
+  const d = calcular();
+  dibujarCascada(d);
+  dibujarIndicadores(d);
+  actualizarDefiniciones(d);
+}
+
+['tiempo_max', 'tiempo_no_usado', 'paros_planeados', 'paros_no_planeados'].forEach(id => {
+  document.getElementById(id).addEventListener('input', actualizarTodo);
+});
+
+document.getElementById('perdida_velocidad').addEventListener('input', (e) => {
+  document.getElementById('perdida_velocidad_val').textContent = e.target.value + '%';
+  actualizarTodo();
+});
+document.getElementById('perdida_calidad').addEventListener('input', (e) => {
+  document.getElementById('perdida_calidad_val').textContent = e.target.value + '%';
+  actualizarTodo();
+});
+
+actualizarTodo();
+</script>
+</body>
+</html>
